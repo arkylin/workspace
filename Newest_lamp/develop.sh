@@ -20,6 +20,92 @@ wget ${Other_files_for_lamp}/options.conf
 
 . /develop/options.conf
 
+# set the default timezone
+timezone=Asia/Shanghai
+
+# Nginx Apache and PHP-FPM process is run as $run_user(Default "www"), you can freely specify
+run_user=www
+
+# App Version
+apr_version=1.7.0
+apr_util_version=1.6.1
+apr_util_additional="--with-crypto"
+
+Apache_version=2.4.41
+Apache_additional=""
+
+PHP_main_version=7.3.14
+PHP_install_lists=""
+# 暂停安装PHP5.6.40
+PHP_libiconv_version=1.16
+
+# set the default install path, you can freely specify
+app_dir=/app
+source_dir=/app/source
+data_dir=/data
+
+apr_install_dir=/app/apr
+apache_install_dir=/app/apache
+libiconv_install_dir=/app/libiconv
+php_install_dir=/app/php
+
+apache_config_dir=/data/vhost/apache
+
+Mysql_install="false"
+Redis_install="true"
+
+# Add modules
+php_modules_options='--with-pdo-pgsql --with-pgsql --without-pear --disable-phar'
+
+# PHP extension
+PHP_Extension_lists=("apcu" "redis" "imagick")
+PHP_Extension_version_lists=("5.1.18" "5.1.1" "3.4.4")
+
+#########################################################################
+# database data storage directory, you can freely specify
+
+# web directory, you can customize
+wwwroot_dir=/data/wwwroot
+
+# nginx Generate a log storage directory, you can freely specify.
+wwwlogs_dir=/data/wwwlogs
+
+# THREAD
+THREAD=8
+
+# Mirror
+Mirror_source=http://mirrors.tuna.tsinghua.edu.cn
+PHP_source=https://www.php.net/distributions
+PHP_libiconv=https://ftp.gnu.org/pub/gnu/libiconv
+PHP_extension_source=http://pecl.php.net/get
+ImageMagick_source=http://www.imagemagick.org/download
+
+# SSH
+ssh_port=22122
+
+# Startup
+Startup_dir=/lib/systemd/system
+
+# OS_BIT
+OS_BIT=64
+
+# PHP_Memory_limit
+PHP_Memory_limit=512
+
+# Mem
+Mem=2048
+
+# Password
+Password="Kylin910340."
+
+# PHP config change
+PHP_config_ver=""
+
+#  --disable-fileinfo
+
+# ImageMagick path
+ImageMagick_path=/usr/include/ImageMagick-6
+
 sed -i "s@^#Port 22@Port ${ssh_port}@" /etc/ssh/sshd_config
 sed -i "s@^#PermitRootLogin.*@PermitRootLogin yes@" /etc/ssh/sshd_config
 systemctl enable sshd
@@ -318,61 +404,16 @@ Install_PHP() {
 
     tar xzf ${source_dir}/php-${PHP_install_version}.tar.gz
     cd ${source_dir}/php-${PHP_install_version}
-    mkdir -p ${php_install_dir}   
-    
-    if [ "${PHP_install_version}" == "7.4.2" ] && [ "${Beta}" != "yes" ]; then
+    mkdir -p ${php_install_dir}
       ./configure --prefix=${php_install_dir} --with-config-file-path=${php_install_dir}/etc \
         --with-config-file-scan-dir=${php_install_dir}/etc/php.d \
         --with-fpm-user=${run_user} --with-fpm-group=${run_user} --enable-fpm --enable-opcache \
-        --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd \
-        --with-iconv-dir=${libiconv_install_dir} --with-freetype --with-jpeg --with-zlib \
-        --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-exif \
-        --enable-sysvsem --enable-inline-optimization --with-curl --enable-mbregex \
-        --enable-mbstring --with-password-argon2 --with-sodium --enable-gd --with-openssl \
-        --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-ftp --enable-intl --with-xsl \
-        --with-gettext --enable-soap --disable-debug ${php_modules_options}
-    elif [ "${PHP_install_version}" == "7.4.2" ] && [ "${Beta}" == "yes" ]; then
-      ./configure --prefix=${php_install_dir} --with-config-file-path=${php_install_dir}/etc \
-        --with-config-file-scan-dir=${php_install_dir}/etc/php.d \
-        --with-fpm-user=${run_user} --with-fpm-group=${run_user} --enable-fpm --enable-opcache \
-        --with-iconv-dir=${libiconv_install_dir} --with-freetype --with-jpeg --with-zlib \
-        --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-exif \
-        --enable-sysvsem --enable-inline-optimization --with-curl --enable-mbregex \
-        --enable-mbstring --with-password-argon2 --with-sodium --enable-gd --with-openssl \
-        --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-ftp --enable-intl --with-xsl \
-        --with-gettext --enable-soap --disable-debug ${php_modules_options}
-    elif [ "${PHP_install_version}" == "7.3.14" ]; then
-      ./configure --prefix=${php_install_dir} --with-config-file-path=${php_install_dir}/etc \
-        --with-config-file-scan-dir=${php_install_dir}/etc/php.d \
-        --with-fpm-user=${run_user} --with-fpm-group=${run_user} --enable-fpm --enable-opcache \
-        --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd \
-        --with-iconv-dir=${libiconv_install_dir} --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib \
+        --with-iconv-dir=${libiconv_install_dir} --with-freetype-dir --with-jpeg-dir  --with-png-dir --with-zlib \
         --with-libxml-dir --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-exif \
         --enable-sysvsem --enable-inline-optimization --with-curl --enable-mbregex \
         --enable-mbstring --with-password-argon2 --with-sodium --with-gd --with-openssl \
         --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-ftp --enable-intl --with-xsl \
         --with-gettext --enable-zip --with-libzip --enable-soap --disable-debug ${php_modules_options}
-    elif [ "${PHP_install_version}" == "5.6.40" ]; then
-      ./configure --prefix=${php_install_dir} --with-config-file-path=${php_install_dir}/etc \
-        --with-config-file-scan-dir=${php_install_dir}/etc/php.d \
-        --with-fpm-user=${run_user} --with-fpm-group=${run_user} --enable-fpm --enable-opcache \
-        --with-mysql=mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd \
-        --with-iconv-dir=${libiconv_install_dir} --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib \
-        --with-libxml-dir --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-exif \
-        --enable-sysvsem --enable-inline-optimization --with-curl --enable-mbregex \
-        --enable-mbstring --with-mcrypt --with-gd --enable-gd-native-ttf --with-openssl \
-        --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-ftp --with-xsl --enable-intl \
-        --with-gettext --enable-zip --enable-soap --disable-debug ${php_modules_options}
-    else
-      ./configure --prefix=${php_install_dir} --with-config-file-path=${php_install_dir}/etc \
-        --with-config-file-scan-dir=${php_install_dir}/etc/php.d \
-        --with-fpm-user=${run_user} --with-fpm-group=${run_user} --enable-fpm --enable-opcache \
-        --with-mysql=mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd \
-        --with-iconv-dir=${libiconv_install_dir} --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib \
-        --enable-sysvsem --enable-inline-optimization --with-curl --enable-mbregex \
-        --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-ftp --enable-intl --with-xsl \
-        --with-gettext --enable-soap --disable-debug ${php_modules_options}
-    fi
 
     make -j ${THREAD} && make install
     [ -z "`grep ^'export PATH=' /etc/profile`" ] && echo "export PATH=${php_install_dir}/bin:\$PATH" >> /etc/profile
@@ -403,20 +444,9 @@ Install_PHP() {
 [opcache]
 zend_extension=opcache.so
 opcache.enable=1
-opcache.enable_cli=1
-opcache.memory_consumption=512M
 opcache.interned_strings_buffer=8
 opcache.max_accelerated_files=100000
-opcache.max_wasted_percentage=5
-opcache.use_cwd=1
-opcache.validate_timestamps=1
-#Change
-;opcache.revalidate_freq=60
-#Change
-;opcache.save_comments=0
-opcache.consistency_checks=0
-;opcache.optimization_level=0
-# Nextcloud
+opcache.memory_consumption=128
 opcache.save_comments=1
 opcache.revalidate_freq=1
 EOF
