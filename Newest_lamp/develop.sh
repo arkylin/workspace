@@ -1,28 +1,36 @@
 #/bin/bash
-Other_files_for_lamp="https://raw.githubusercontent.com/arkylin/Newest_lamp/master"
+Other_files_for_lamp="https://raw.githubusercontent.com/arkylin/Newest_lamp/self"
 pkgList="passwd nano java jemalloc jemalloc-devel openssh-server python python-devel python2 python2-devel oniguruma-devel rpcgen go htop libicu icu deltarpm gcc gcc-c++ make cmake autoconf libjpeg libjpeg-devel libjpeg-turbo libjpeg-turbo-devel libpng libpng-devel libxml2 libxml2-devel zlib zlib-devel glibc glibc-devel krb5-devel libc-client libc-client-devel glib2 glib2-devel bzip2 bzip2-devel ncurses ncurses-devel libaio numactl numactl-libs readline-devel curl curl-devel e2fsprogs e2fsprogs-devel krb5-devel libidn libidn-devel openssl openssl-devel libxslt-devel libicu-devel libevent-devel libtool libtool-ltdl bison gd-devel vim-enhanced pcre pcre-devel libmcrypt libmcrypt-devel mhash mhash-devel mcrypt zip unzip sqlite-devel sysstat patch bc expect expat-devel oniguruma oniguruma-devel libtirpc-devel nss nss-devel rsync rsyslog git lsof lrzsz psmisc wget which libatomic tmux"
 Apache_pkg="jansson jansson-devel diffutils nghttp2 libnghttp2 libnghttp2-devel"
 PHP_pkg="curl curl-devel freetype freetype-devel argon2 libargon2 libargon2-devel libsodium libsodium-devel mhash mhash-devel gettext gettext-devel"
-pkgList="${pkgList} ${Apache_pkg} ${PHP_pkg}"
+PHP_73="libzip libzip-devel"
+PHP_56="re2c"
+PostgreSQL="postgresql postgresql-server postgresql-devel"
+Change_Password="cracklib-dicts"
+pkgList="${pkgList} ${Apache_pkg} ${PHP_pkg} ${PHP_73} ${PHP_56} ${PostgreSQL} ${Change_Password}"
 
 for Package in ${pkgList}; do
   dnf -y install ${Package}
   done
 
 dnf -y update bash openssl glibc
-sed -i "s@^#Port 22@Port ${ssh_port}@" /etc/ssh/sshd_config
-sed -i "s@^#PermitRootLogin.*@PermitRootLogin yes@" /etc/ssh/sshd_config
-systemctl enable sshd
-if [ ${Password} != "" ]; then
-  echo "${Password}" | passwd root --stdin > /dev/null 2>&1
-fi
 
 cd /develop
 wget ${Other_files_for_lamp}/options.conf
 
 . /develop/options.conf
 
+sed -i "s@^#Port 22@Port ${ssh_port}@" /etc/ssh/sshd_config
+sed -i "s@^#PermitRootLogin.*@PermitRootLogin yes@" /etc/ssh/sshd_config
+systemctl enable sshd
+
+if [ ${Password} != "" ]; then
+  echo root:${Password}|chpasswd
+fi
+
 mkdir -p ${app_dir} ${source_dir} ${data_dir}
+
+PHP_install_version=${PHP_main_version}
 
 # 进入源码目录
 cd ${source_dir}
@@ -37,7 +45,7 @@ if [ ${libiconv_install_dir} = "" ]; then
   libiconv_install_dir=${app_dir}/libiconv-${PHP_libiconv_version}
 fi
 if [ ${php_install_dir} = "" ]; then
-  php_install_dir=${app_dir}/php-${PHP_main_version}
+  php_install_dir=${app_dir}/php-${PHP_install_version}
 fi
 
 # 添加用户
@@ -254,74 +262,124 @@ EOF
   # 结束安装 Apache
 }
 
-Install_PHP() {
-  # 开始安装 PHP
-  wget ${PHP_source}/php-${PHP_main_version}.tar.gz
+Install_libiconv() {
+  # 开始安装 libiconv
   wget ${PHP_libiconv}/libiconv-${PHP_libiconv_version}.tar.gz
 
-  if [ -e "${source_dir}/php-${PHP_main_version}.tar.gz" ]; then
-    echo "PHP-${PHP_main_version} download successfully! "
-    echo "PHP-${PHP_main_version} download successfully! "
-    echo "PHP-${PHP_main_version} download successfully! "
+  if [ -e "${source_dir}/libiconv-${PHP_libiconv_version}.tar.gz" ]; then
+    echo "libiconv-${PHP_libiconv_version} download successfully! "
+    echo "libiconv-${PHP_libiconv_version} download successfully! "
+    echo "libiconv-${PHP_libiconv_version} download successfully! "
+    tar xzf libiconv-${PHP_libiconv_version}.tar.gz
+    cd libiconv-${PHP_libiconv_version}
+    mkdir -p ${libiconv_install_dir}
+    ./configure --prefix=${libiconv_install_dir}
+    make -j ${THREAD} && make install && libtool --finish ${libiconv_install_dir}/lib
+    cd ${source_dir}
+    rm -rf ${source_dir}/libiconv-${PHP_libiconv_version}.tar.gz ${source_dir}/libiconv-${PHP_libiconv_version}
+  else
+    echo "libiconv-${PHP_libiconv_version} download Failed! "
+    echo "libiconv-${PHP_libiconv_version} download Failed! "
+    echo "libiconv-${PHP_libiconv_version} download Failed! "
+  fi
 
-    # libiconv
-    if [ -e "${source_dir}/libiconv-${PHP_libiconv_version}.tar.gz" ]; then
-      echo "libiconv-${PHP_libiconv_version} download successfully! "
-      echo "libiconv-${PHP_libiconv_version} download successfully! "
-      echo "libiconv-${PHP_libiconv_version} download successfully! "
-      tar xzf libiconv-${PHP_libiconv_version}.tar.gz
-      cd libiconv-${PHP_libiconv_version}
-      mkdir -p ${libiconv_install_dir}
-      ./configure --prefix=${libiconv_install_dir}
-      make -j ${THREAD} && make install && libtool --finish ${libiconv_install_dir}/lib
-      cd ${source_dir}
-      rm -rf libiconv-${PHP_libiconv_version}.tar.gz libiconv-${PHP_libiconv_version}
-    else
-      echo "libiconv-${PHP_libiconv_version} download Failed! "
-      echo "libiconv-${PHP_libiconv_version} download Failed! "
-      echo "libiconv-${PHP_libiconv_version} download Failed! "
-    fi
+  if [ -e "${libiconv_install_dir}/lib/libiconv.la" ]; then
+    echo "libiconv-${PHP_libiconv_version} installed successfully! "
+    echo "libiconv-${PHP_libiconv_version} installed successfully! "
+    echo "libiconv-${PHP_libiconv_version} installed successfully! "
+  else
+    rm -rf ${libiconv_install_dir}
+    echo "libiconv-${PHP_libiconv_version} installed Failed! "
+    echo "libiconv-${PHP_libiconv_version} installed Failed! "
+    echo "libiconv-${PHP_libiconv_version} installed Failed! "
+  fi
+  
+  [ -z "`grep /usr/local/lib /etc/ld.so.conf.d/*.conf`" ] && echo '/usr/local/lib' > /etc/ld.so.conf.d/local.conf
 
-    if [ -e "${libiconv_install_dir}/lib/libiconv.la" ]; then
-      echo "libiconv-${PHP_libiconv_version} installed successfully! "
-      echo "libiconv-${PHP_libiconv_version} installed successfully! "
-      echo "libiconv-${PHP_libiconv_version} installed successfully! "
-    else
-      rm -rf ${libiconv_install_dir}
-      echo "libiconv-${PHP_libiconv_version} installed Failed! "
-      echo "libiconv-${PHP_libiconv_version} installed Failed! "
-      echo "libiconv-${PHP_libiconv_version} installed Failed! "
-    fi
+  if [ "${OS_BIT}" == '64' ]; then
+    [ ! -e "/lib64/libpcre.so.1" ] && ln -s /lib64/libpcre.so.0.0.1 /lib64/libpcre.so.1
+    [ ! -e "/usr/lib/libc-client.so" ] && ln -s /usr/lib64/libc-client.so /usr/lib/libc-client.so
+  else
+    [ ! -e "/lib/libpcre.so.1" ] && ln -s /lib/libpcre.so.0.0.1 /lib/libpcre.so.1
+  fi
+
+  ldconfig
+  # 结束安装 libiconv
+}
+
+Install_PHP() {
+  # 开始安装 PHP
+  wget ${PHP_source}/php-${PHP_install_version}.tar.gz
+
+  if [ -e "${source_dir}/php-${PHP_install_version}.tar.gz" ]; then
+    echo "PHP-${PHP_install_version} download successfully! "
+    echo "PHP-${PHP_install_version} download successfully! "
+    echo "PHP-${PHP_install_version} download successfully! "
+
+    tar xzf ${source_dir}/php-${PHP_install_version}.tar.gz
+    cd ${source_dir}/php-${PHP_install_version}
+    mkdir -p ${php_install_dir}   
     
-    [ -z "`grep /usr/local/lib /etc/ld.so.conf.d/*.conf`" ] && echo '/usr/local/lib' > /etc/ld.so.conf.d/local.conf
-
-    if [ "${OS_BIT}" == '64' ]; then
-      [ ! -e "/lib64/libpcre.so.1" ] && ln -s /lib64/libpcre.so.0.0.1 /lib64/libpcre.so.1
-      [ ! -e "/usr/lib/libc-client.so" ] && ln -s /usr/lib64/libc-client.so /usr/lib/libc-client.so
+    if [ "${PHP_install_version}" == "7.4.2" ] && [ "${Beta}" != "yes" ]; then
+      ./configure --prefix=${php_install_dir} --with-config-file-path=${php_install_dir}/etc \
+        --with-config-file-scan-dir=${php_install_dir}/etc/php.d \
+        --with-fpm-user=${run_user} --with-fpm-group=${run_user} --enable-fpm --enable-opcache \
+        --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd \
+        --with-iconv-dir=${libiconv_install_dir} --with-freetype --with-jpeg --with-zlib \
+        --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-exif \
+        --enable-sysvsem --enable-inline-optimization --with-curl --enable-mbregex \
+        --enable-mbstring --with-password-argon2 --with-sodium --enable-gd --with-openssl \
+        --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-ftp --enable-intl --with-xsl \
+        --with-gettext --enable-soap --disable-debug ${php_modules_options}
+    elif [ "${PHP_install_version}" == "7.4.2" ] && [ "${Beta}" == "yes" ]; then
+      ./configure --prefix=${php_install_dir} --with-config-file-path=${php_install_dir}/etc \
+        --with-config-file-scan-dir=${php_install_dir}/etc/php.d \
+        --with-fpm-user=${run_user} --with-fpm-group=${run_user} --enable-fpm --enable-opcache \
+        --with-iconv-dir=${libiconv_install_dir} --with-freetype --with-jpeg --with-zlib \
+        --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-exif \
+        --enable-sysvsem --enable-inline-optimization --with-curl --enable-mbregex \
+        --enable-mbstring --with-password-argon2 --with-sodium --enable-gd --with-openssl \
+        --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-ftp --enable-intl --with-xsl \
+        --with-gettext --enable-soap --disable-debug ${php_modules_options}
+    elif [ "${PHP_install_version}" == "7.3.14" ]; then
+      ./configure --prefix=${php_install_dir} --with-config-file-path=${php_install_dir}/etc \
+        --with-config-file-scan-dir=${php_install_dir}/etc/php.d \
+        --with-fpm-user=${run_user} --with-fpm-group=${run_user} --enable-fpm --enable-opcache \
+        --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd \
+        --with-iconv-dir=${libiconv_install_dir} --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib \
+        --with-libxml-dir --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-exif \
+        --enable-sysvsem --enable-inline-optimization --with-curl --enable-mbregex \
+        --enable-mbstring --with-password-argon2 --with-sodium --with-gd --with-openssl \
+        --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-ftp --enable-intl --with-xsl \
+        --with-gettext --enable-zip --with-libzip --enable-soap --disable-debug ${php_modules_options}
+    elif [ "${PHP_install_version}" == "5.6.40" ]; then
+      ./configure --prefix=${php_install_dir} --with-config-file-path=${php_install_dir}/etc \
+        --with-config-file-scan-dir=${php_install_dir}/etc/php.d \
+        --with-fpm-user=${run_user} --with-fpm-group=${run_user} --enable-fpm --enable-opcache \
+        --with-mysql=mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd \
+        --with-iconv-dir=${libiconv_install_dir} --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib \
+        --with-libxml-dir --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-exif \
+        --enable-sysvsem --enable-inline-optimization --with-curl --enable-mbregex \
+        --enable-mbstring --with-mcrypt --with-gd --enable-gd-native-ttf --with-openssl \
+        --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-ftp --with-xsl --enable-intl \
+        --with-gettext --enable-zip --enable-soap --disable-debug ${php_modules_options}
     else
-      [ ! -e "/lib/libpcre.so.1" ] && ln -s /lib/libpcre.so.0.0.1 /lib/libpcre.so.1
+      ./configure --prefix=${php_install_dir} --with-config-file-path=${php_install_dir}/etc \
+        --with-config-file-scan-dir=${php_install_dir}/etc/php.d \
+        --with-fpm-user=${run_user} --with-fpm-group=${run_user} --enable-fpm --enable-opcache \
+        --with-mysql=mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd \
+        --with-iconv-dir=${libiconv_install_dir} --with-freetype-dir --with-jpeg-dir --with-png-dir --with-zlib \
+        --enable-sysvsem --enable-inline-optimization --with-curl --enable-mbregex \
+        --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-ftp --enable-intl --with-xsl \
+        --with-gettext --enable-soap --disable-debug ${php_modules_options}
     fi
 
-    ldconfig
-
-    tar xzf ${source_dir}/php-${PHP_main_version}.tar.gz
-    cd ${source_dir}/php-${PHP_main_version}
-    mkdir -p ${php_install_dir}
-    ./configure --prefix=${php_install_dir} --with-config-file-path=${php_install_dir}/etc \
-      --with-config-file-scan-dir=${php_install_dir}/etc/php.d \
-      --with-fpm-user=${run_user} --with-fpm-group=${run_user} --enable-fpm --disable-fileinfo \
-      --enable-mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd \
-      --with-iconv-dir=${libiconv_install_dir} --with-freetype --with-jpeg --with-zlib \
-      --enable-xml --disable-rpath --enable-bcmath --enable-shmop --enable-exif \
-      --enable-sysvsem --enable-inline-optimization --with-curl --enable-mbregex \
-      --enable-mbstring --with-password-argon2 --with-sodium --enable-gd --with-openssl \
-      --with-mhash --enable-pcntl --enable-sockets --with-xmlrpc --enable-ftp --enable-intl --with-xsl \
-      --with-gettext --enable-soap --disable-debug ${php_modules_options}
     make -j ${THREAD} && make install
     [ -z "`grep ^'export PATH=' /etc/profile`" ] && echo "export PATH=${php_install_dir}/bin:\$PATH" >> /etc/profile
     [ -n "`grep ^'export PATH=' /etc/profile`" -a -z "`grep ${php_install_dir} /etc/profile`" ] && sed -i "s@^export PATH=\(.*\)@export PATH=${php_install_dir}/bin:\1@" /etc/profile
     . /etc/profile
     mkdir -p ${php_install_dir}/etc/php.d
+    touch ${php_install_dir}/etc/php.d/my_extension.ini
     /bin/cp php.ini-production ${php_install_dir}/etc/php.ini
 
     sed -i "s@^memory_limit.*@memory_limit = ${PHP_Memory_limit}M@" ${php_install_dir}/etc/php.ini
@@ -337,9 +395,9 @@ Install_PHP() {
     sed -i 's@^;realpath_cache_size.*@realpath_cache_size = 2M@' ${php_install_dir}/etc/php.ini
     sed -i 's@^disable_functions.*@disable_functions = passthru,exec,system,chroot,chgrp,chown,shell_exec,proc_open,proc_get_status,ini_alter,ini_restore,dl,readlink,symlink,popepassthru,stream_socket_server,fsocket,popen@' ${php_install_dir}/etc/php.ini
     [ -e /usr/sbin/sendmail ] && sed -i 's@^;sendmail_path.*@sendmail_path = /usr/sbin/sendmail -t -i@' ${php_install_dir}/etc/php.ini
-    sed -i "s@^;curl.cainfo.*@curl.cainfo = \"${openssl_install_dir}/cert.pem\"@" ${php_install_dir}/etc/php.ini
-    sed -i "s@^;openssl.cafile.*@openssl.cafile = \"${openssl_install_dir}/cert.pem\"@" ${php_install_dir}/etc/php.ini
-    sed -i "s@^;openssl.capath.*@openssl.capath = \"${openssl_install_dir}/cert.pem\"@" ${php_install_dir}/etc/php.ini
+    sed -i "s@^;curl.cainfo.*@curl.cainfo = \"/etc/pki/tls/certs/ca-bundle.crt\"@" ${php_install_dir}/etc/php.ini
+    sed -i "s@^;openssl.cafile.*@openssl.cafile = \"/etc/pki/tls/certs/ca-bundle.crt\"@" ${php_install_dir}/etc/php.ini
+    sed -i "s@^;openssl.capath.*@openssl.capath = \"/etc/pki/tls/certs/ca-bundle.crt\"@" ${php_install_dir}/etc/php.ini
 
     cat > ${php_install_dir}/etc/php.d/02-opcache.ini << EOF
 [opcache]
@@ -352,16 +410,21 @@ opcache.max_accelerated_files=100000
 opcache.max_wasted_percentage=5
 opcache.use_cwd=1
 opcache.validate_timestamps=1
-opcache.revalidate_freq=60
+#Change
+;opcache.revalidate_freq=60
+#Change
 ;opcache.save_comments=0
 opcache.consistency_checks=0
 ;opcache.optimization_level=0
+# Nextcloud
+opcache.save_comments=1
+opcache.revalidate_freq=1
 EOF
     cd ${Startup_dir}
-    wget ${Other_files_for_lamp}/init.d/php-fpm.service
+    wget -O "php-fpm${PHP_config_ver}.service" ${Other_files_for_lamp}/init.d/php-fpm.service
     cd ${source_dir}
-    sed -i "s@/usr/local/php@${php_install_dir}@g" ${Startup_dir}/php-fpm.service
-    systemctl enable php-fpm
+    sed -i "s@/usr/local/php@${php_install_dir}@g" ${Startup_dir}/php-fpm${PHP_config_ver}.service
+    systemctl enable php-fpm${PHP_config_ver}
 
     cat > ${php_install_dir}/etc/php-fpm.conf <<EOF
 ;;;;;;;;;;;;;;;;;;;;;
@@ -373,8 +436,8 @@ EOF
 ;;;;;;;;;;;;;;;;;;
 
 [global]
-pid = run/php-fpm.pid
-error_log = log/php-fpm.log
+pid = run/php-fpm${PHP_config_ver}.pid
+error_log = log/php-fpm${PHP_config_ver}.log
 log_level = warning
 
 emergency_restart_threshold = 30
@@ -387,7 +450,7 @@ daemonize = yes
 ;;;;;;;;;;;;;;;;;;;;
 
 [${run_user}]
-listen = /dev/shm/php-cgi.sock
+listen = /dev/shm/php-cgi${PHP_config_ver}.sock
 listen.backlog = -1
 listen.allowed_clients = 127.0.0.1
 listen.owner = ${run_user}
@@ -406,7 +469,7 @@ pm.process_idle_timeout = 10s
 request_terminate_timeout = 120
 request_slowlog_timeout = 0
 
-pm.status_path = /php-fpm_status
+pm.status_path = /php-fpm${PHP_config_ver}_status
 slowlog = var/log/slow.log
 rlimit_files = 51200
 rlimit_core = 0
@@ -447,23 +510,46 @@ EOF
     fi
 
     cd ${source_dir}
-    rm -rf ${source_dir}/php-${PHP_main_version}.tar.gz
+    rm -rf ${source_dir}/php-${PHP_install_version}.tar.gz ${source_dir}/php-${PHP_install_version}
+
+    # 安装PHP扩展
+    mkdir -p ${source_dir}/extension
+
+    for check_imagick in ${PHP_Extension_lists[*]}; do
+    if [ "${check_imagick}" == "imagick" ] && [ ! -d ${ImageMagick_path} ]; then
+      dnf -y install ImageMagick*
+    fi
+    done
+
+    if [ "${PHP_install_version}" == "7.4.2" ]; then
+      extension_name="zip"
+      extension_version="1.16.1"
+      Install_PHP_Extension
+    fi
+
+    if [ "${PHP_Extension_lists}" != "" ] && [ "${PHP_Extension_version_lists}" != "" ]; then
+      for num in $(seq 0 $[${#PHP_Extension_lists[*]}-1]); do
+      extension_name=${PHP_Extension_lists[${num}]}
+      extension_version=${PHP_Extension_version_lists[${num}]}
+      Install_PHP_Extension
+      done
+    fi
 
   else
-    echo "PHP-${PHP_main_version} download Failed! "
-    echo "PHP-${PHP_main_version} download Failed! "
-    echo "PHP-${PHP_main_version} download Failed! "
+    echo "PHP-${PHP_install_version} download Failed! "
+    echo "PHP-${PHP_install_version} download Failed! "
+    echo "PHP-${PHP_install_version} download Failed! "
   fi
 
   if [ -e "${php_install_dir}/bin/phpize" ]; then
-    echo "PHP-${PHP_main_version} installed successfully! "
-    echo "PHP-${PHP_main_version} installed successfully! "
-    echo "PHP-${PHP_main_version} installed successfully! "
+    echo "PHP-${PHP_install_version} installed successfully! "
+    echo "PHP-${PHP_install_version} installed successfully! "
+    echo "PHP-${PHP_install_version} installed successfully! "
   else
     rm -rf ${php_install_dir}
-    echo "PHP-${PHP_main_version} installed Failed! "
-    echo "PHP-${PHP_main_version} installed Failed! "
-    echo "PHP-${PHP_main_version} installed Failed! "
+    echo "PHP-${PHP_install_version} installed Failed! "
+    echo "PHP-${PHP_install_version} installed Failed! "
+    echo "PHP-${PHP_install_version} installed Failed! "
   fi
   # 结束安装 PHP
 }
@@ -475,8 +561,59 @@ Install_Mysql() {
   # 结束安装 Mysql
 }
 
+Install_Redis() {
+  # 开始安装 Redis
+  dnf -y install redis redis-devel
+  sed -i "s@^# unixsocket /tmp/redis.sock@unixsocket /tmp/redis.sock@" /etc/redis.conf
+  sed -i "s@^# unixsocketperm 700@unixsocketperm 777@" /etc/redis.conf
+  systemctl enable redis
+  # 结束安装 Redis
+}
+
+Install_PHP_Extension() {
+  cd ${source_dir}/extension
+  wget ${PHP_extension_source}/${extension_name}-${extension_version}.tgz
+  tar xzf ${extension_name}-${extension_version}.tgz
+  cd ${extension_name}-${extension_version}
+  ${php_install_dir}/bin/phpize
+  ./configure --with-php-config=${php_install_dir}/bin/php-config
+  make -j ${THREAD} && make install
+
+  if [ "${extension_name}" != "zendopcache" ]; then
+    echo "extension=${extension_name}.so" >> ${php_install_dir}/etc/php.d/my_extension.ini
+  fi
+
+  rm -rf ${source_dir}/extension/${extension_name}-${extension_version}.tgz ${source_dir}/extension/${extension_name}-${extension_version}
+  cd ${source_dir}
+}
+
+# 函数结束
+
+# 开始安装...
+
 if [ "${Mysql_install}" == 'true' ]; then
-  Install_Apr && Install_Apr_util && Install_Apache && Install_PHP && Install_Mysql
-else
-  Install_Apr && Install_Apr_util && Install_Apache && Install_PHP
+  Install_Mysql
 fi
+
+if [ "${Redis_install}" == 'true' ]; then
+  Install_Redis
+fi
+
+Install_Apr && Install_Apr_util && Install_Apache && Install_libiconv && Install_PHP
+
+if [ "${PHP_install_lists}" != "" ]; then
+  for PHP_install_list in ${PHP_install_lists}; do
+  PHP_install_version=${PHP_install_list}
+  php_install_dir=${app_dir}/php-${PHP_install_version}
+  PHP_config_ver="-${PHP_install_version}"
+  Install_PHP
+  done
+fi
+
+rm -rf ${source_dir}
+
+# PostgreSQL
+if [ ${Password} != "" ]; then
+  echo postgres:${Password}|chpasswd
+fi
+systemctl enable postgresql
