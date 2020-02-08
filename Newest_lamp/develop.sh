@@ -647,6 +647,3 @@ if [ ${Password} != "" ]; then
   echo postgres:${Password}|chpasswd
 fi
 systemctl enable postgresql
-
-# Python
-pip install openpyxl
